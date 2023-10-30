@@ -5,10 +5,10 @@
 }
 
 body {
-  font-family: 'Mulish', sans-serif;
+  font-family: "Mulish", sans-serif;
   cursor: default;
-  background-color: #F0F0F0;
-  color: #1C1C1A;
+  background-color: #f0f0f0;
+  color: #1c1c1a;
   height: 100vh; /* Use viewport height instead of 100% to occupy full screen height */
   text-align: center;
   overflow: auto;
@@ -22,7 +22,7 @@ body {
   align-items: center;
   justify-content: space-between;
   background-color: #154151;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.2);  /* optional drop shadow */
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2); /* optional drop shadow */
 }
 
 .logo-container img {
@@ -32,9 +32,10 @@ body {
 }
 
 #pianoRollContainer {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
+  align-self: center;
+  width: 90vw;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
 }
 
 h1 {
@@ -45,7 +46,7 @@ h1 {
 button {
   padding: 15px 25px;
   font-size: 18px;
-  color: #F0F0F0;
+  color: #f0f0f0;
   background-color: #944038;
   border: none;
   cursor: pointer;
@@ -55,9 +56,9 @@ button {
 
 button {
   /* ... existing button styles ... */
-  border-bottom: 3px solid #381815;  /* A darker shade for 3D effect */
-  position: relative;  /* Required for the top movement on hover */
-  transition: all 1.1s ease;  /* Transition for all properties */
+  border-bottom: 3px solid #381815; /* A darker shade for 3D effect */
+  position: relative; /* Required for the top movement on hover */
+  transition: all 1.1s ease; /* Transition for all properties */
 }
 
 #buttonContainer {
@@ -71,16 +72,59 @@ button:hover {
 
 .piano-roll-svg {
   border: 2px solid #381815;
+  transition: box-shadow 0.3s;
+}
+
+.piano-roll-svg:hover {
+  box-shadow: 0 0 10px rgba(0, 0, 0, 0.4);
 }
 
 .piano-roll-card {
   border: 1px solid #ccc;
   margin-bottom: 10px;
+  margin-inline: 10px;
   padding: 10px;
-  width: 50%;
   box-sizing: border-box;
+  cursor: pointer;
+  display: inline-block;
+  vertical-align: top;
 }
 
-.description {
+.main {
+  width: 60vw;
+  height: 60vh;
+  border: 2px solid #ccc;
   margin-top: 10px;
+  display: inline-block;
+  vertical-align: middle;
+}
+
+.list-view {
+  width: 20vw;
+  display: inline-block;
+  vertical-align: top;
+  overflow-y: scroll;
+  max-height: 90vh;
+  padding: 10px;
+  border-left: 1px solid #ddd;
+}
+
+@media (max-width: 900px) {
+  #pianoRollContainer {
+    width: 95vw;
+    grid-template-columns: repeat(1, 1fr);
+  }
+
+  .main {
+    width: 100vw;
+    margin: 10px 0;
+    border: none;
+  }
+
+  .list-view {
+    width: 100vw;
+    max-height: 70vh;
+    border-left: none;
+    border-top: 1px solid #ddd;
+  }
 }
