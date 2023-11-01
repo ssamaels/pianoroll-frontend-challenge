@@ -15,6 +15,8 @@ export default class PianoRoll {
   constructor(svgElement, sequence) {
     this.svgElement = svgElement;
     this.end = null;
+    this.notes = [];
+    this.mouseHasMoved = false;
 
     // PianoRoll brand #5DB5D5
     const backgroundStartColor = { r: 93, g: 181, b: 213 };
@@ -38,11 +40,83 @@ export default class PianoRoll {
     this.svgElement.setAttribute("preserveAspectRatio", "none");
     this.drawPianoRoll(sequence);
 
-    // Added listener to the individual piano rolls
-    this.addClickListener();
+    // Initialize properties related to selection within the PianoRoll.
+    this.selection = {
+      active: false, // If a new selection is being drawn.
+      present: false, // If a selection currently exists.
+      start: null, // Start x-coordinate of the selection.
+      end: null, // End x-coordinate of the selection.
+      resizing: false, // If the selection is being resized.
+      activeEdge: null, // Which edge ("start" or "end") of the selection is being manipulated.
+    };
+
+    // Create a rectangle for selection visuals
+    this.selectionRect = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "rect"
+    );
+    this.selectionRect.setAttribute("visibility", "hidden");
+    this.selectionRect.setAttribute("y", "0");
+    this.selectionRect.setAttribute("height", "1");
+    this.selectionRect.setAttribute("x", "0");
+    this.selectionRect.setAttribute("width", "0.1");
+    this.selectionRect.setAttribute("fill", "rgba(0, 255, 0, 0.2)");
+    this.svgElement.appendChild(this.selectionRect);
+
+    this.startHandle = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "rect"
+    );
+    this.startHandle.setAttribute("visibility", "hidden");
+    this.startHandle.setAttribute("height", "1");
+    this.startHandle.setAttribute("width", "0.003");
+    this.startHandle.setAttribute("fill", "rgba(0, 255, 0)");
+    this.startHandle.setAttribute("cursor", "col-resize");
+    this.startHandle.setAttribute("z-index", "50");
+    this.svgElement.appendChild(this.startHandle);
+
+    this.endHandle = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "rect"
+    );
+    this.endHandle.setAttribute("visibility", "hidden");
+    this.endHandle.setAttribute("height", "1");
+    this.endHandle.setAttribute("width", "0.003");
+    this.endHandle.setAttribute("fill", "rgba(0, 255, 0)");
+    this.endHandle.setAttribute("cursor", "col-resize");
+    this.endHandle.setAttribute("z-index", "50");
+    this.svgElement.appendChild(this.endHandle);
+
+    // Create an exit button for the selection
+    this.exitButton = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "text"
+    );
+    this.exitButton.textContent = "X";
+    this.exitButton.setAttribute("visibility", "hidden");
+    this.exitButton.setAttribute("font-size", "0.02");
+    this.exitButton.setAttribute("cursor", "pointer");
+    this.exitButton.addEventListener("click", this.exitSelection.bind(this));
+    this.svgElement.appendChild(this.exitButton);
+
+    this.drawPianoRoll(sequence);
+
+    // Event Listeners for selection
+    this.svgElement.addEventListener(
+      "mousedown",
+      this.startSelection.bind(this)
+    );
+    this.svgElement.addEventListener(
+      "mousemove",
+      this.updateSelection.bind(this)
+    );
+    this.svgElement.addEventListener("mouseup", (e) =>
+      this.confirmSelection(e)
+    );
   }
 
   timeToX(time) {
+    // Converts time value to x-coordinate on SVG.
     return time / this.end;
   }
 
@@ -101,9 +175,15 @@ export default class PianoRoll {
 
       // Draw it
       this.svgElement.appendChild(note_rectangle);
+
+      this.notes.push({
+        note: note,
+        position: x,
+      });
     });
   }
 
+  // Draws the empty PianoRoll with key separations and colors for black keys.
   drawEmptyPianoRoll(pitch_min, pitch_max) {
     const pitch_span = pitch_max - pitch_min;
     for (let it = pitch_min; it <= pitch_max + 1; it++) {
@@ -148,21 +228,160 @@ export default class PianoRoll {
     }
   }
 
-  // Added method for handling click event
-  addClickListener() {
-    this.svgElement.addEventListener("click", () => {
-      const mainPianoRollSVG = document.getElementById("mainPianoRoll");
-      while (mainPianoRollSVG.firstChild) {
-        mainPianoRollSVG.removeChild(mainPianoRollSVG.firstChild);
+  // Begins the process of making a selection.
+  startSelection(e) {
+    this.mouseHasMoved = false;
+
+    const rect = this.svgElement.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+
+    if (this.selection.present) {
+      if (this.isNearEdge(x, "start")) {
+        this.selection.resizing = true;
+        this.selection.activeEdge = "start";
+      } else if (this.isNearEdge(x, "end")) {
+        this.selection.resizing = true;
+        this.selection.activeEdge = "end";
       }
-      Array.from(this.svgElement.childNodes).forEach((child) => {
-        mainPianoRollSVG.appendChild(child.cloneNode(true));
-      });
-      mainPianoRollSVG.setAttribute(
-        "viewBox",
-        this.svgElement.getAttribute("viewBox")
-      );
-      mainPianoRollSVG.style.display = "block";
+      return;
+    }
+
+    this.selection.active = true;
+    this.selection.start = x;
+    this.selection.end = x;
+    this.selectionRect.setAttribute("x", this.selection.start);
+    this.selectionRect.setAttribute("width", "0");
+    this.selectionRect.setAttribute("visibility", "visible");
+    this.exitButton.setAttribute("visibility", "visible");
+  }
+
+  // Determines if x-coordinate is within an existing selection.
+  isWithinSelection(x) {
+    // Check if the current x-coordinate is within the existing selection
+    const start = parseFloat(this.selectionRect.getAttribute("x"));
+    const width = parseFloat(this.selectionRect.getAttribute("width"));
+    return x >= start && x <= start + width;
+  }
+
+  // Determines if the x-coordinate is near a specified edge of the selection.
+  isNearEdge(x, edge) {
+    const tolerance = 0.02;
+    const position =
+      edge === "start"
+        ? parseFloat(this.startHandle.getAttribute("x"))
+        : parseFloat(this.endHandle.getAttribute("x"));
+    return Math.abs(x - position) < tolerance;
+  }
+
+  // Updates the visual representation of the selection as the mouse moves.
+  updateSelection(e) {
+    this.mouseHasMoved = true;
+
+    const rect = this.svgElement.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+
+    if (this.selection.resizing) {
+      if (this.selection.activeEdge === "start") {
+        this.selection.start = x;
+      } else if (this.selection.activeEdge === "end") {
+        this.selection.end = x;
+      }
+    } else {
+      // If there's already a selection present, don't do anything
+      if (this.selection.present) return;
+
+      // If we're making a new selection
+      if (x >= this.selection.start) {
+        this.selection.end = x;
+      } else {
+        this.selection.end = this.selection.start;
+        this.selection.start = x;
+      }
+    }
+
+    this.updateRect();
+    this.updateHandles();
+    this.updateExitButton();
+  }
+
+  // Confirm the current selection when the mouse button is released.
+  confirmSelection(e) {
+    if (!this.mouseHasMoved) {
+      this.exitSelection();
+      return;
+    }
+
+    const [start, end] = [this.selection.start, this.selection.end].sort(
+      (a, b) => a - b
+    );
+
+    this.selection.start = start;
+    this.selection.end = end;
+
+    this.selection.active = false;
+    this.selection.resizing = false;
+    this.selection.activeEdge = null;
+
+    this.selection.present = true; // The selection is now present
+    this.updateRect();
+    this.updateExitButton();
+
+    this.selectionRect.setAttribute("visibility", "visible");
+    this.exitButton.setAttribute("visibility", "visible");
+    this.startHandle.setAttribute("visibility", "visible");
+    this.endHandle.setAttribute("visibility", "visible");
+
+    let selectedNotes = this.notes.filter((noteObj) => {
+      const noteStart = noteObj.position;
+      const noteWidth = this.timeToX(noteObj.note.end - noteObj.note.start);
+      const noteEnd = noteStart + noteWidth;
+      return noteStart >= this.selection.start && noteEnd <= this.selection.end;
     });
+
+    console.log("Selection Start:", this.selection.start);
+    console.log("Selection End:", this.selection.end);
+    console.log("Number of notes within the selection:", selectedNotes.length);
+  }
+
+  // Position the exit button on the selection.
+  placeExitButton(x) {
+    this.exitButton.setAttribute("x", x - 0.05);
+    this.exitButton.setAttribute("y", "0.05");
+    this.exitButton.setAttribute("visibility", "hidden");
+  }
+
+  // Exit the selection mode and hide selection visuals.
+  exitSelection() {
+    this.selectionRect.setAttribute("visibility", "hidden");
+    this.exitButton.setAttribute("visibility", "hidden");
+    this.startHandle.setAttribute("visibility", "hidden");
+    this.endHandle.setAttribute("visibility", "hidden");
+
+    this.selection.present = false; // Reset the flag when you exit the selection
+    this.selection.active = false;
+    this.selection.resizing = false;
+    this.selection.activeEdge = null;
+  }
+
+  // Update the size and position of the selection rectangle.
+  updateRect() {
+    this.selectionRect.setAttribute("x", this.selection.start);
+    this.selectionRect.setAttribute(
+      "width",
+      this.selection.end - this.selection.start
+    );
+  }
+
+  // Update the position of the selection handles (start and end).
+  updateHandles() {
+    this.startHandle.setAttribute("x", this.selection.start);
+    this.startHandle.setAttribute("y", "0");
+    this.endHandle.setAttribute("x", this.selection.end);
+    this.endHandle.setAttribute("y", "0");
+  }
+
+  // Update the position of the exit button based on the current selection.
+  updateExitButton() {
+    this.placeExitButton(this.selection.end + 0.06);
   }
 }

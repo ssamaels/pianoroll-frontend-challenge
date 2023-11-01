@@ -21,6 +21,8 @@ class PianoRollDisplay {
   preparePianoRollCard(rollId, isMain = false) {
     const cardDiv = document.createElement("div");
     cardDiv.classList.add("piano-roll-card");
+    cardDiv.dataset.rollId = rollId;
+
     if (isMain) {
       cardDiv.classList.add("main");
     }
@@ -31,6 +33,7 @@ class PianoRollDisplay {
     descriptionDiv.textContent = `This is a piano roll number ${rollId}`;
     cardDiv.appendChild(descriptionDiv);
 
+    // Create an SVG element to display the actual piano roll.
     const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
     svg.classList.add("piano-roll-svg");
     const svgWidth = isMain ? "90%" : "80%";
@@ -50,34 +53,37 @@ class PianoRollDisplay {
     return { cardDiv, svg };
   }
 
+  // This method sets the main view for a particular roll ID.
   setMainView(rollId) {
     const pianoRollContainer = document.getElementById("pianoRollContainer");
-    pianoRollContainer.innerHTML = "";
+    const pianoRollCards =
+      pianoRollContainer.querySelectorAll(".piano-roll-card");
 
-    // Setting the main view
-    const { cardDiv: mainCard, svg: mainSvg } = this.preparePianoRollCard(
-      rollId,
-      true
-    );
-    pianoRollContainer.appendChild(mainCard);
-    const roll = new PianoRoll(
-      mainSvg,
-      this.data.slice(rollId * 60, rollId * 60 + 60)
-    );
-
-    // Setting the list view
-    const listView = document.createElement("div");
-    listView.classList.add("list-view");
-    for (let it = 0; it < 20; it++) {
-      if (it === rollId) continue;
-      const start = it * 60;
-      const end = start + 60;
-      const partData = this.data.slice(start, end);
-      const { cardDiv, svg } = this.preparePianoRollCard(it);
-      listView.appendChild(cardDiv);
-      const listViewRoll = new PianoRoll(svg, partData);
+    // Check if a listView exists, and if not, create it.
+    let listView = pianoRollContainer.querySelector(".list-view");
+    if (!listView) {
+      listView = document.createElement("div");
+      listView.classList.add("list-view");
+      pianoRollContainer.appendChild(listView);
     }
-    pianoRollContainer.appendChild(listView);
+    listView.innerHTML = ""; // Clear any existing content in the listView.
+
+    // Iterate over all piano roll cards.
+    pianoRollCards.forEach((card, index) => {
+      // If the index matches the rollId, modify the card as the main view.
+      if (index === rollId) {
+        card.classList.add("main");
+        card.querySelector(".piano-roll-svg").setAttribute("width", "90%");
+        card.querySelector(".piano-roll-svg").setAttribute("height", "90%");
+        pianoRollContainer.prepend(card); // Move the main view to the top
+        // If not the main view, make adjustments and add to listView.
+      } else {
+        card.classList.remove("main");
+        card.querySelector(".piano-roll-svg").setAttribute("width", "80%");
+        card.querySelector(".piano-roll-svg").setAttribute("height", "150");
+        listView.appendChild(card); // Append to listView
+      }
+    });
   }
 
   async generateSVGs() {
