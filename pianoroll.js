@@ -69,7 +69,7 @@ export default class PianoRoll {
     );
     this.startHandle.setAttribute("visibility", "hidden");
     this.startHandle.setAttribute("height", "1");
-    this.startHandle.setAttribute("width", "0.003");
+    this.startHandle.setAttribute("width", "0.005");
     this.startHandle.setAttribute("fill", "rgba(0, 255, 0)");
     this.startHandle.setAttribute("cursor", "col-resize");
     this.startHandle.setAttribute("z-index", "50");
@@ -81,7 +81,7 @@ export default class PianoRoll {
     );
     this.endHandle.setAttribute("visibility", "hidden");
     this.endHandle.setAttribute("height", "1");
-    this.endHandle.setAttribute("width", "0.003");
+    this.endHandle.setAttribute("width", "0.005");
     this.endHandle.setAttribute("fill", "rgba(0, 255, 0)");
     this.endHandle.setAttribute("cursor", "col-resize");
     this.endHandle.setAttribute("z-index", "50");
@@ -179,6 +179,7 @@ export default class PianoRoll {
       this.notes.push({
         note: note,
         position: x,
+        rect: note_rectangle,
       });
     });
   }
@@ -263,6 +264,26 @@ export default class PianoRoll {
     return x >= start && x <= start + width;
   }
 
+  // Determines if a given note is within a selected range
+  isNoteWithinSelection(noteObj) {
+    const noteStart = noteObj.position;
+    const noteWidth = this.timeToX(noteObj.note.end - noteObj.note.start);
+    const noteEnd = noteStart + noteWidth;
+    return noteStart >= this.selection.start && noteEnd <= this.selection.end;
+  }
+
+  // Updates the color of notes within selection
+  updateNoteColors() {
+    this.notes.forEach((noteObj) => {
+      if (this.selection && this.isNoteWithinSelection(noteObj)) {
+        noteObj.rect.setAttribute("fill", "rgba(29, 0, 255, 1)"); // Red color for "selected"
+      } else {
+        const color = this.noteColormap[noteObj.note.velocity];
+        noteObj.rect.setAttribute("fill", color);
+      }
+    });
+  }
+
   // Determines if the x-coordinate is near a specified edge of the selection.
   isNearEdge(x, edge) {
     const tolerance = 0.02;
@@ -275,6 +296,10 @@ export default class PianoRoll {
 
   // Updates the visual representation of the selection as the mouse moves.
   updateSelection(e) {
+    if (!this.selection.active && !this.selection.resizing) {
+      return;
+    }
+
     this.mouseHasMoved = true;
 
     const rect = this.svgElement.getBoundingClientRect();
@@ -322,9 +347,10 @@ export default class PianoRoll {
     this.selection.resizing = false;
     this.selection.activeEdge = null;
 
-    this.selection.present = true; // The selection is now present
+    this.selection.present = true;
     this.updateRect();
     this.updateExitButton();
+    this.updateNoteColors();
 
     this.selectionRect.setAttribute("visibility", "visible");
     this.exitButton.setAttribute("visibility", "visible");
@@ -357,10 +383,12 @@ export default class PianoRoll {
     this.startHandle.setAttribute("visibility", "hidden");
     this.endHandle.setAttribute("visibility", "hidden");
 
-    this.selection.present = false; // Reset the flag when you exit the selection
+    this.selection.present = false;
     this.selection.active = false;
     this.selection.resizing = false;
     this.selection.activeEdge = null;
+    this.selection = { start: null, end: null };
+    this.updateNoteColors();
   }
 
   // Update the size and position of the selection rectangle.
