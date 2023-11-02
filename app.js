@@ -56,8 +56,11 @@ class PianoRollDisplay {
   // This method sets the main view for a particular roll ID.
   setMainView(rollId) {
     const pianoRollContainer = document.getElementById("pianoRollContainer");
-    const pianoRollCards =
-      pianoRollContainer.querySelectorAll(".piano-roll-card");
+
+    // Get all piano roll cards.
+    const pianoRollCards = [
+      ...pianoRollContainer.querySelectorAll(".piano-roll-card"),
+    ];
 
     // Check if a listView exists, and if not, create it.
     let listView = pianoRollContainer.querySelector(".list-view");
@@ -68,21 +71,39 @@ class PianoRollDisplay {
     }
     listView.innerHTML = ""; // Clear any existing content in the listView.
 
+    // To hold cards that should be appended to listView
+    const cardsForListView = [];
+
     // Iterate over all piano roll cards.
-    pianoRollCards.forEach((card, index) => {
-      // If the index matches the rollId, modify the card as the main view.
-      if (index === rollId) {
+    pianoRollCards.forEach((card) => {
+      const descriptionDiv = card.querySelector(".description");
+      const currentRollId = parseInt(card.dataset.rollId, 10);
+
+      // If the currentRollId matches the rollId, modify the card as the main view.
+      if (currentRollId === rollId) {
         card.classList.add("main");
         card.querySelector(".piano-roll-svg").setAttribute("width", "90%");
         card.querySelector(".piano-roll-svg").setAttribute("height", "90%");
         pianoRollContainer.prepend(card); // Move the main view to the top
-        // If not the main view, make adjustments and add to listView.
+        descriptionDiv.style.fontSize = "25px";
       } else {
+        // If not the main view, store the card for later appending to listView.
+        cardsForListView.push(card);
         card.classList.remove("main");
         card.querySelector(".piano-roll-svg").setAttribute("width", "80%");
         card.querySelector(".piano-roll-svg").setAttribute("height", "150");
-        listView.appendChild(card); // Append to listView
+        descriptionDiv.style.fontSize = "16px";
       }
+    });
+
+    // Sort cardsForListView based on their data-rollId
+    cardsForListView.sort((a, b) => {
+      return parseInt(a.dataset.rollId, 10) - parseInt(b.dataset.rollId, 10);
+    });
+
+    // Append the sorted cards to listView
+    cardsForListView.forEach((card) => {
+      listView.appendChild(card);
     });
   }
 
