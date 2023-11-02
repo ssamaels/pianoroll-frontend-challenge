@@ -45,6 +45,7 @@ h1 {
 
 button {
   padding: 15px 25px;
+  margin-bottom: 20px;
   font-size: 18px;
   color: #f0f0f0;
   background-color: #944038;
@@ -68,6 +69,7 @@ button:hover {
 
 .piano-roll-svg {
   border: 2px solid #381815;
+  border-radius: 10px;
   transition: box-shadow 0.3s;
 }
 
@@ -76,7 +78,9 @@ button:hover {
 }
 
 .piano-roll-card {
+  background-color: #ebebeb;
   border: 1px solid #ccc;
+  border-radius: 10px;
   margin-bottom: 10px;
   margin-inline: 10px;
   padding: 10px;
@@ -84,6 +88,10 @@ button:hover {
   cursor: pointer;
   display: inline-block;
   vertical-align: top;
+}
+
+.description {
+  margin-bottom: 5px;
 }
 
 .main {
