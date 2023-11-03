@@ -104,6 +104,7 @@ button:hover {
 }
 
 .list-view {
+  margin-left: 5rem;
   width: 20vw;
   display: inline-block;
   vertical-align: top;
@@ -128,6 +129,7 @@ button:hover {
   .list-view {
     width: 100vw;
     max-height: 70vh;
+    margin-left: 0;
     border-left: none;
     border-top: 1px solid #ddd;
   }
